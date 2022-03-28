@@ -142,14 +142,29 @@ class BaseDataSet(Dataset):
             raise ValueError
 
     def _val_augmentation(self, image, label):
+        # if self.base_size is not None:
+        #     image, label = self._resize(image, label)
+        #     image = self.normalize(self.to_tensor(Image.fromarray(np.uint8(image))))
+        #     return image, label
+
+        # image = self.normalize(self.to_tensor(Image.fromarray(np.uint8(image))))
+
+        # return image, label
+        h, w, _ = image.shape
+
         if self.base_size is not None:
             image, label = self._resize(image, label)
-            image = self.normalize(self.to_tensor(Image.fromarray(np.uint8(image))))
-            return image, label
 
-        image = self.normalize(self.to_tensor(Image.fromarray(np.uint8(image))))
+        if self.crop_size is not None:
+            image, label = self._crop(image, label)
 
-        return image, label
+        if self.flip:
+            image, label = self._flip(image, label)
+
+        image = Image.fromarray(np.uint8(image))
+        # image = self.jitter_tf(image) if self.jitter else image    
+        
+        return self.normalize(self.to_tensor(image)), label
 
     def _augmentation(self, image, label):
         h, w, _ = image.shape

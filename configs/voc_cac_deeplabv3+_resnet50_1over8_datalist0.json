@@ -1,10 +1,10 @@
 {
     "name": "CAC",
-    "experim_name": "voc_cac_deeplabv3+_resnet50_1over8_datalist0",
+    "experim_name": "test2",
     "dataset": "voc",
-    "data_dir": "/home/xinlai/VOCtrainval_11-May-2012",
+    "data_dir": "./pretrained/VOCtrainval_11-May-2012",
     "datalist": 0,
-    "n_gpu": 2,
+    "n_gpu": 1,
     "n_labeled_examples": 1323,
     "diff_lrs": true,
     "ramp_up": 0.1,
@@ -48,7 +48,7 @@
     },
 
     "train_supervised": {
-        "batch_size": 8,
+        "batch_size": 4,
         "crop_size": 320,
         "shuffle": true,
         "base_size": 400,
@@ -58,11 +58,11 @@
         "rotate": false,
         "blur": false,
         "split": "train_supervised",
-        "num_workers": 8
+        "num_workers": 2
     },
 
     "train_unsupervised": {
-        "batch_size": 8,
+        "batch_size": 4,
         "crop_size": 320,
         "shuffle": true,
         "base_size": 400,
@@ -72,21 +72,22 @@
         "rotate": false,
         "blur": false,
         "split": "train_unsupervised",
-        "num_workers": 8,
+        "num_workers": 2,
         "iou_bound": [0.1, 1.0],
         "stride": 8
     },
 
     "val_loader": {
-        "batch_size": 2,
+        "batch_size": 4,
+        "crop_size": 320,
         "val": true,
         "split": "val",
         "shuffle": false,
-        "num_workers": 4
+        "num_workers": 0
     },
 
     "trainer": {
-        "epochs": 80,
+        "epochs": 2,
         "save_dir": "saved/",
         "save_period": 1,
   
@@ -95,7 +96,7 @@
         
         "tensorboardX": true,
         "log_dir": "saved/",
-        "log_per_iter": 20,
+        "log_per_iter": 200,
 
         "val": true,
         "val_per_epochs": 1
