@@ -77,7 +77,7 @@ def main(gpu, ngpus_per_node, config, resume, test):
     sup_loss = CE_loss
     # model = models.CAC(num_classes=val_loader.dataset.num_classes, conf=config['model'],
     # 						sup_loss=sup_loss, ignore_index=val_loader.dataset.ignore_index)
-    model = models.Network(val_loader.dataset.num_classes, conf=config['model'], criterion=sup_loss,
+    model = models.SGS(val_loader.dataset.num_classes, conf=config['model'], criterion=sup_loss,
                     norm_layer=None)
     if gpu == 0:
         print(f'\n{model}\n')

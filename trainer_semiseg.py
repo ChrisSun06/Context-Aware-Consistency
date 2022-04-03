@@ -31,7 +31,7 @@ class Trainer(BaseTrainer_semiseg):
             self.log_step = int(self.log_step / self.val_loader.batch_size) + 1
 
         self.num_classes = self.val_loader.dataset.num_classes
-        self.mode = self.model.module.mode
+        # self.mode = self.model.module.mode
 
         # TRANSORMS FOR VISUALIZATION
         self.restore_transform = transforms.Compose([
@@ -52,24 +52,25 @@ class Trainer(BaseTrainer_semiseg):
         self.supervised_loader.train_sampler.set_epoch(epoch)
         self.unsupervised_loader.train_sampler.set_epoch(epoch)
 
-        if self.mode == 'supervised':
-            dataloader = iter(self.supervised_loader)
-            tbar = tqdm(range(len(self.supervised_loader)), ncols=135)
-        else:
-            dataloader = iter(zip(cycle(self.supervised_loader), cycle(self.unsupervised_loader)))
-            tbar = tqdm(range(self.iter_per_epoch), ncols=135)
+        # if self.mode == 'supervised':
+        #     dataloader = iter(self.supervised_loader)
+        #     tbar = tqdm(range(len(self.supervised_loader)), ncols=135)
+        # else:
+        dataloader = iter(zip(cycle(self.supervised_loader), cycle(self.unsupervised_loader)))
+        tbar = tqdm(range(self.iter_per_epoch), ncols=135)
 
         self._reset_metrics()
 
         for batch_idx in tbar:
 
-            if self.mode == 'supervised':
-                (input_l, target_l), (input_ul, target_ul) = next(dataloader), (None, None)
-            else:
-                (input_l, target_l), (input_ul, target_ul, ul1, br1, ul2, br2, flip) = next(dataloader)
+            # if self.mode == 'supervised':
+            #     (input_l, target_l), (input_ul, target_ul) = next(dataloader), (None, None)
+            # else:W
+            (input_l, target_l), (input_ul, target_ul) = next(dataloader)
 
             input_l, target_l = input_l.cuda(non_blocking=True), target_l.cuda(non_blocking=True)
             input_ul, target_ul = input_ul.cuda(non_blocking=True), target_ul.cuda(non_blocking=True)
+            self.model.zero_grad()
             self.optimizer_l.zero_grad()
             self.optimizer_r.zero_grad()
 
@@ -77,10 +78,12 @@ class Trainer(BaseTrainer_semiseg):
             #     total_loss, cur_losses, outputs = self.model(x_l=input_l, target_l=target_l, x_ul=input_ul,
             #                                                 curr_iter=batch_idx, target_ul=target_ul, epoch=epoch-1)
             # else:
-            kargs = {'gpu': self.gpu, 'ul1': ul1, 'br1': br1, 'ul2': ul2, 'br2': br2, 'flip': flip}
+            kargs = {'gpu': self.gpu, 'ul1': None, 'br1': None, 'ul2': None, 'br2': None, 'flip': None}
             # total_loss, cur_losses, outputs = self.model(x_l=input_l, target_l=target_l, x_ul=input_ul,
             #                                             curr_iter=batch_idx, target_ul=target_ul, epoch=epoch-1, **kargs)
             # target_ul = target_ul[:, 0]
+            # print(input_l.shape)
+            # print(input_ul.shape)
             _, pred_sup_l = self.model(input_l, step=1)
             _, pred_unsup_l = self.model(input_ul, step=1)
             _, pred_sup_r = self.model(input_l, step=2)
@@ -89,8 +92,8 @@ class Trainer(BaseTrainer_semiseg):
             outputs = {'sup_pred': pred_sup_l}
             
             # config network and criterion
-            criterion = nn.CrossEntropyLoss(reduction='mean', ignore_index=255)
-            criterion_csst = nn.MSELoss(reduction='mean')
+            criterion = torch.nn.CrossEntropyLoss(reduction='mean', ignore_index=255)
+            criterion_csst = torch.nn.MSELoss(reduction='mean')
 
             ### cps loss ###
             pred_l = torch.cat([pred_sup_l, pred_unsup_l], dim=0)
@@ -120,8 +123,9 @@ class Trainer(BaseTrainer_semiseg):
 
             loss = loss_sup + loss_sup_r + cps_loss
             loss.backward()
-            optimizer_l.step()
-            optimizer_r.step()
+            self.optimizer_l.step()
+            self.optimizer_r.step()
+            
 
             cur_losses = {'loss_sup': loss_sup}
             cur_losses['loss_sup_r'] = loss_sup_r
@@ -159,9 +163,10 @@ class Trainer(BaseTrainer_semiseg):
                 tbar.set_description(descrip)
 
             del input_l, target_l, input_ul, target_ul
-            del total_loss, cur_losses, outputs
+            del loss, cur_losses, outputs
             
-            self.lr_scheduler.step(epoch=epoch-1)
+            self.lr_scheduler_l.step(epoch=epoch-1)
+            self.lr_scheduler_r.step(epoch=epoch-1)
             
         return logs if self.gpu == 0 else None
 
@@ -326,16 +331,16 @@ class Trainer(BaseTrainer_semiseg):
 
         logs['mIoU_labeled'] = self.mIoU_l
         logs['pixel_acc_labeled'] = self.pixel_acc_l
-        if self.mode == 'semi':
-            logs['mIoU_unlabeled'] = self.mIoU_ul
-            logs['pixel_acc_unlabeled'] = self.pixel_acc_ul
+        # if self.mode == 'semi':
+        logs['mIoU_unlabeled'] = self.mIoU_ul
+        logs['pixel_acc_unlabeled'] = self.pixel_acc_ul
         return logs
 
 
     def _write_scalars_tb(self, logs):
         for k, v in logs.items():
             if 'class_iou' not in k: self.writer.add_scalar(f'train/{k}', v, self.wrt_step)
-        for i, opt_group in enumerate(self.optimizer.param_groups):
+        for i, opt_group in enumerate(self.optimizer_l.param_groups):
             self.writer.add_scalar(f'train/Learning_rate_{i}', opt_group['lr'], self.wrt_step)
         # current_rampup = self.model.module.unsup_loss_w.current_rampup
         # self.writer.add_scalar('train/Unsupervised_rampup', current_rampup, self.wrt_step)

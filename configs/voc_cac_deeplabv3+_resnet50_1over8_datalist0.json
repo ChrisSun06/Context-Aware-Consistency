@@ -98,7 +98,7 @@
         "log_dir": "saved/",
         "log_per_iter": 200,
 
-        "val": true,
+        "val": false,
         "val_per_epochs": 1
     }
 }

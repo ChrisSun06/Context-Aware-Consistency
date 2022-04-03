@@ -146,3 +146,5 @@ inference.py
 base/__pycache__
 configs/config*
 
+SegmentationClassAug.zip
+VOCtrainval_11-May-2012.tar

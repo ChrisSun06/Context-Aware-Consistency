@@ -304,9 +304,9 @@ class CAC(BaseModel):
         else:
             raise ValueError("No such mode {}".format(self.mode))
 
-class Network(nn.Module):
+class SGS(BaseModel):
     def __init__(self, num_classes, conf, criterion, norm_layer, pretrained_model=None):
-        super(Network, self).__init__()
+        super(SGS, self).__init__()
         self.branch1 = SingleNetwork(num_classes, conf, criterion, norm_layer, pretrained_model)
         self.branch2 = SingleNetwork(num_classes, conf, criterion, norm_layer, pretrained_model)
 
@@ -346,7 +346,7 @@ class SingleNetwork(nn.Module):
         #                           bn_momentum=config.bn_momentum,
         #                           deep_stem=True, stem_width=64)
         self.sup_loss_w = conf['supervised_w']
-        self.sup_loss = sup_loss
+        # self.sup_loss = sup_loss
         self.downsample = conf['downsample']
         self.backbone = conf['backbone']
         self.layers = conf['layers']

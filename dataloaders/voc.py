@@ -74,6 +74,8 @@ class PairVOCDataset(BaseDataSet):
             label_path = os.path.join(self.weak_labels_output, image_id+".png")
         else:
             label_path = os.path.join(self.root, self.labels[index][1:])
+        print("image_path: {}".format(image_path))
+        print("label_path: {}".format(label_path))
         label = np.asarray(Image.open(label_path), dtype=np.int32)
         h, w, _ = image.shape
 
@@ -184,6 +186,51 @@ class PairVOCDataset(BaseDataSet):
 
         return images, labels, overlap1_ul, overlap1_br, overlap2_ul, overlap2_br, flip
 
+class PairVOCDataset2(BaseDataSet):
+    def __init__(self, **kwargs):
+        self.num_classes = 21
+        
+        self.datalist = kwargs.pop("datalist")
+        self.stride = kwargs.pop('stride')
+        self.iou_bound = kwargs.pop('iou_bound') #default [0.3, 0.7]
+
+        self.palette = pallete.get_voc_pallete(self.num_classes)
+        super(PairVOCDataset2, self).__init__(**kwargs)
+
+        self.train_transform = transforms.Compose([
+            transforms.ToPILImage(),
+            RandomGaussianBlur(),
+            transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
+            transforms.RandomGrayscale(p=0.2),
+            transforms.ToTensor(),
+            self.normalize,
+        ])
+
+    def _set_files(self):
+        self.root = os.path.join(self.root, 'VOCdevkit/VOC2012')
+        
+        prefix = "dataloaders/voc_splits{}".format(self.datalist)
+        if self.split == "val":
+            file_list = os.path.join(prefix, f"{self.split}" + ".txt")
+        elif self.split in ["train_supervised", "train_unsupervised"]:
+            file_list = os.path.join(prefix, f"{self.n_labeled_examples}_{self.split}" + ".txt")
+        else:
+            raise ValueError(f"Invalid split name {self.split}")
+
+        file_list = [line.rstrip().split(' ') for line in tuple(open(file_list, "r"))]
+        self.files, self.labels = list(zip(*file_list))
+
+    def _load_data(self, index):
+        image_path = os.path.join(self.root, self.files[index][1:])
+        image = np.asarray(Image.open(image_path), dtype=np.float32)
+        image_id = self.files[index].split("/")[-1].split(".")[0]
+        if self.use_weak_lables:
+            label_path = os.path.join(self.weak_labels_output, image_id+".png")
+        else:
+            label_path = os.path.join(self.root, self.labels[index][1:])
+        label = np.asarray(Image.open(label_path), dtype=np.int32)
+        return image, label, image_id
+
 
 class PairVOC(BaseDataLoader):
     def __init__(self, kwargs):
@@ -197,7 +244,7 @@ class PairVOC(BaseDataLoader):
 
         sampler_shuffle = kwargs.pop('shuffle')
         num_workers = kwargs.pop('num_workers')
-        self.dataset = PairVOCDataset(**kwargs)
+        self.dataset = PairVOCDataset2(**kwargs)
         shuffle = False
         dist_sampler = torch.utils.data.distributed.DistributedSampler(self.dataset, shuffle=sampler_shuffle)
 

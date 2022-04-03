@@ -226,14 +226,17 @@ class BaseTrainer_semiseg:
 
         self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
 
+        # trainable_params_l = [{'params': list(filter(lambda p:p.requires_grad, self.model.get_other_params(step=1))), 'lr': config['optimizer']['args']['lr'] / 10}]
         trainable_params_l = [{'params': list(filter(lambda p:p.requires_grad, self.model.get_other_params(step=1)))},
                             {'params': list(filter(lambda p:p.requires_grad, self.model.get_backbone_params(step=1))), 
                             'lr': config['optimizer']['args']['lr'] / 10}]
         trainable_params_r = [{'params': list(filter(lambda p:p.requires_grad, self.model.get_other_params(step=2)))},
                             {'params': list(filter(lambda p:p.requires_grad, self.model.get_backbone_params(step=2))), 
                             'lr': config['optimizer']['args']['lr'] / 10}]
+        # trainable_params_r = [{'params': list(filter(lambda p:p.requires_grad, self.model.get_other_params(step=2))), 'lr': config['optimizer']['args']['lr'] / 10}]
 
-        self.model = torch.nn.parallel.DistributedDataParallel(self.model.cuda(), device_ids=[gpu], find_unused_parameters=True)
+        # self.model = torch.nn.parallel.DistributedDataParallel(self.model.cuda(), device_ids=[gpu], find_unused_parameters=True)
+        self.model = self.model.cuda()
 
         # CONFIGS
         cfg_trainer = self.config['trainer']
