@@ -6,7 +6,7 @@ from itertools import cycle
 import torch.nn.functional as F
 from torchvision.utils import make_grid
 from torchvision import transforms
-from base import BaseTrainer
+from base import BaseTrainer, BaseTrainer_semiseg
 from utils.helpers import colorize_mask
 from utils.metrics import eval_metrics, AverageMeter
 from tqdm import tqdm
@@ -14,7 +14,7 @@ from PIL import Image
 from utils.helpers import DeNormalize
 import torch.distributed as dist
 
-class Trainer(BaseTrainer):
+class Trainer(BaseTrainer_semiseg):
     def __init__(self, model, resume, config, supervised_loader, unsupervised_loader, iter_per_epoch,
                 val_loader=None, train_logger=None, gpu=None, gt_loader=None, test=False):
         super(Trainer, self).__init__(model, resume, config, iter_per_epoch, train_logger, gpu=gpu, test=test)
@@ -70,28 +70,71 @@ class Trainer(BaseTrainer):
 
             input_l, target_l = input_l.cuda(non_blocking=True), target_l.cuda(non_blocking=True)
             input_ul, target_ul = input_ul.cuda(non_blocking=True), target_ul.cuda(non_blocking=True)
-            self.optimizer.zero_grad()
+            self.optimizer_l.zero_grad()
+            self.optimizer_r.zero_grad()
 
-            if self.mode == 'supervised':
-                total_loss, cur_losses, outputs = self.model(x_l=input_l, target_l=target_l, x_ul=input_ul,
-                                                            curr_iter=batch_idx, target_ul=target_ul, epoch=epoch-1)
-            else:
-                kargs = {'gpu': self.gpu, 'ul1': ul1, 'br1': br1, 'ul2': ul2, 'br2': br2, 'flip': flip}
-                total_loss, cur_losses, outputs = self.model(x_l=input_l, target_l=target_l, x_ul=input_ul,
-                                                            curr_iter=batch_idx, target_ul=target_ul, epoch=epoch-1, **kargs)
-                target_ul = target_ul[:, 0]
+            # if self.mode == 'supervised':
+            #     total_loss, cur_losses, outputs = self.model(x_l=input_l, target_l=target_l, x_ul=input_ul,
+            #                                                 curr_iter=batch_idx, target_ul=target_ul, epoch=epoch-1)
+            # else:
+            kargs = {'gpu': self.gpu, 'ul1': ul1, 'br1': br1, 'ul2': ul2, 'br2': br2, 'flip': flip}
+            # total_loss, cur_losses, outputs = self.model(x_l=input_l, target_l=target_l, x_ul=input_ul,
+            #                                             curr_iter=batch_idx, target_ul=target_ul, epoch=epoch-1, **kargs)
+            # target_ul = target_ul[:, 0]
+            _, pred_sup_l = self.model(input_l, step=1)
+            _, pred_unsup_l = self.model(input_ul, step=1)
+            _, pred_sup_r = self.model(input_l, step=2)
+            _, pred_unsup_r = self.model(input_ul, step=2)
 
-            total_loss.backward()
-            self.optimizer.step()
+            outputs = {'sup_pred': pred_sup_l}
+            
+            # config network and criterion
+            criterion = nn.CrossEntropyLoss(reduction='mean', ignore_index=255)
+            criterion_csst = nn.MSELoss(reduction='mean')
+
+            ### cps loss ###
+            pred_l = torch.cat([pred_sup_l, pred_unsup_l], dim=0)
+            pred_r = torch.cat([pred_sup_r, pred_unsup_r], dim=0)
+            _, max_l = torch.max(pred_l, dim=1)
+            _, max_r = torch.max(pred_r, dim=1)
+            max_l = max_l.long()
+            max_r = max_r.long()
+            cps_loss = criterion(pred_l, max_r) + criterion(pred_r, max_l)
+            dist.all_reduce(cps_loss, dist.ReduceOp.SUM)
+            # cps_loss = cps_loss / engine.world_size
+            cps_loss = cps_loss * 1.5
+
+            ### standard cross entropy loss ###
+            loss_sup = criterion(pred_sup_l, target_l)
+            dist.all_reduce(loss_sup, dist.ReduceOp.SUM)
+            # loss_sup = loss_sup / engine.world_size
+
+            loss_sup_r = criterion(pred_sup_r, target_l)
+            dist.all_reduce(loss_sup_r, dist.ReduceOp.SUM)
+            # loss_sup_r = loss_sup_r / engine.world_size
+
+            unlabeled_loss = False
+
+            # current_idx = epoch * config.niters_per_epoch + idx
+            # lr = lr_policy.get_lr(current_idx)
+
+            loss = loss_sup + loss_sup_r + cps_loss
+            loss.backward()
+            optimizer_l.step()
+            optimizer_r.step()
+
+            cur_losses = {'loss_sup': loss_sup}
+            cur_losses['loss_sup_r'] = loss_sup_r
+            cur_losses['cps_loss'] = cps_loss
             
             if self.gpu == 0:
                 if batch_idx % 100 == 0:
-                    self.logger.info("epoch: {} train_loss: {}".format(epoch, total_loss))
+                    self.logger.info("epoch: {} train_loss: {}".format(epoch, loss))
 
             if batch_idx == 0:
-                for key in cur_losses:
-                    if not hasattr(self, key):
-                        setattr(self, key, AverageMeter())
+                self.loss_sup = AverageMeter()
+                self.loss_sup_r  = AverageMeter()
+                self.cps_loss = AverageMeter()
 
             # self._update_losses has already implemented synchronized DDP
             self._update_losses(cur_losses)
@@ -111,7 +154,8 @@ class Trainer(BaseTrainer):
                 descrip = 'T ({}) | '.format(epoch)
                 for key in cur_losses:
                     descrip += key + ' {:.2f} '.format(getattr(self, key).average)
-                descrip += 'm1 {:.2f} m2 {:.2f}|'.format(self.mIoU_l, self.mIoU_ul)
+                # descrip += 'm1 {:.2f} m2 {:.2f}|'.format(self.mIoU_l, self.mIoU_ul)
+                descrip += 'm1 {:.2f}|'.format(self.mIoU_l)
                 tbar.set_description(descrip)
 
             del input_l, target_l, input_ul, target_ul
@@ -150,7 +194,7 @@ class Trainer(BaseTrainer):
                 pad_h, pad_w = up_sizes[0] - data.size(2), up_sizes[1] - data.size(3)
                 data = F.pad(data, pad=(0, pad_w, 0, pad_h), mode='reflect')
 
-                output = self.model(data)
+                output = self.model.branch1(data)
 
                 output = output[:, :, :H, :W]
                 # LOSS
@@ -231,14 +275,13 @@ class Trainer(BaseTrainer):
             seg_metrics_l = self._get_seg_metrics(True)
             self.pixel_acc_l, self.mIoU_l, self.class_iou_l = seg_metrics_l.values()
 
-        if 'unsup_pred' in outputs:
-            print("haha")
-            seg_metrics_ul = eval_metrics(outputs['unsup_pred'], target_ul, self.num_classes, self.ignore_index)
+        # if 'unsup_pred' in outputs:
+        #     seg_metrics_ul = eval_metrics(outputs['unsup_pred'], target_ul, self.num_classes, self.ignore_index)
             
-            if self.gpu == 0:
-                self._update_seg_metrics(*seg_metrics_ul, False)
-                seg_metrics_ul = self._get_seg_metrics(False)
-                self.pixel_acc_ul, self.mIoU_ul, self.class_iou_ul = seg_metrics_ul.values()
+        #     if self.gpu == 0:
+        #         self._update_seg_metrics(*seg_metrics_ul, False)
+        #         seg_metrics_ul = self._get_seg_metrics(False)
+        #         self.pixel_acc_ul, self.mIoU_ul, self.class_iou_ul = seg_metrics_ul.values()
             
     def _update_seg_metrics(self, correct, labeled, inter, union, supervised=True):
         if supervised:

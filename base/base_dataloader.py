@@ -51,3 +51,5 @@ class BaseDataLoader(DataLoader):
         if self.val_sampler is None:
             return None
         return DataLoader(sampler=self.val_sampler, **self.init_kwargs)
+    def get_train_loader(self):
+        return DataLoader(sampler=self.train_sampler, **self.init_kwargs)

@@ -303,3 +303,104 @@ class CAC(BaseModel):
             return chain(self.encoder.get_module_params(), self.classifier.parameters(), self.project.parameters())
         else:
             raise ValueError("No such mode {}".format(self.mode))
+
+class Network(nn.Module):
+    def __init__(self, num_classes, conf, criterion, norm_layer, pretrained_model=None):
+        super(Network, self).__init__()
+        self.branch1 = SingleNetwork(num_classes, conf, criterion, norm_layer, pretrained_model)
+        self.branch2 = SingleNetwork(num_classes, conf, criterion, norm_layer, pretrained_model)
+
+    def forward(self, data, step=1, training=True):
+        if not self.training:
+            pred1 = self.branch1(data)
+            return pred1
+
+        if step == 1:
+            return self.branch1(data)
+        elif step == 2:
+            return self.branch2(data)
+    def get_backbone_params(self, step=1):
+        if step == 1:
+            return self.branch1.backbone.get_backbone_params()
+        elif step == 2:
+            return self.branch2.backbone.get_backbone_params()
+
+    def get_other_params(self, step=1):
+        # if self.mode == 'supervised':
+        #     return chain(self.encoder.get_module_params(), self.classifier.parameters())
+        # elif self.mode == 'semi':
+        #     return chain(self.encoder.get_module_params(), self.classifier.parameters(), self.project.parameters())
+        # else:
+        #     raise ValueError("No such mode {}".format(self.mode))
+        if step == 1:
+            return chain(self.branch1.backbone.get_module_params(), self.branch1.classifier.parameters())
+        elif step == 2:
+            return chain(self.branch2.backbone.get_module_params(), self.branch2.classifier.parameters())
+
+class SingleNetwork(nn.Module):
+    def __init__(self, num_classes, conf, criterion, norm_layer, pretrained_model=None):
+        super(SingleNetwork, self).__init__()
+
+        # self.backbone = resnet50(pretrained_model, norm_layer=norm_layer,
+        #                           bn_eps=config.bn_eps,
+        #                           bn_momentum=config.bn_momentum,
+        #                           deep_stem=True, stem_width=64)
+        self.sup_loss_w = conf['supervised_w']
+        self.sup_loss = sup_loss
+        self.downsample = conf['downsample']
+        self.backbone = conf['backbone']
+        self.layers = conf['layers']
+        self.out_dim = conf['out_dim']
+        self.proj_final_dim = conf['proj_final_dim']
+        
+        self.backbone = DeepLab_v3p(backbone='resnet{}'.format(self.layers))
+        # self.dilate = 2
+        # for m in self.backbone.layer4.children():
+        #     m.apply(partial(self._nostride_dilate, dilate=self.dilate))
+        #     self.dilate *= 2
+
+        # self.head = Head(num_classes, norm_layer, config.bn_momentum)
+        self.classifier = nn.Sequential(nn.Dropout(0.1), nn.Conv2d(256, num_classes, kernel_size=1, stride=1))
+        for m in self.classifier.modules():
+            if isinstance(m, nn.Conv2d):
+                torch.nn.init.kaiming_normal_(m.weight)
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+            elif isinstance(m, nn.SyncBatchNorm):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+        self.business_layer = []
+        # self.business_layer.append(self.head)
+        self.criterion = criterion
+
+        # self.classifier = nn.Conv2d(256, num_classes, kernel_size=1, bias=True)
+        self.business_layer.append(self.classifier)
+
+    def forward(self, data):
+        blocks = self.backbone(data)
+        # v3plus_feature = self.head(blocks)      # (b, c, h, w)
+        # b, c, h, w = v3plus_feature.shape
+
+        pred = self.classifier(blocks)
+
+        b, c, h, w = data.shape
+        pred = F.interpolate(pred, size=(h, w), mode='bilinear', align_corners=True)
+
+        if self.training:
+            return None, pred
+        return pred
+
+    # @staticmethod
+    def _nostride_dilate(self, m, dilate):
+        if isinstance(m, nn.Conv2d):
+            if m.stride == (2, 2):
+                m.stride = (1, 1)
+                if m.kernel_size == (3, 3):
+                    m.dilation = (dilate, dilate)
+                    m.padding = (dilate, dilate)
+
+            else:
+                if m.kernel_size == (3, 3):
+                    m.dilation = (dilate, dilate)
+                    m.padding = (dilate, dilate)
