@@ -73,7 +73,7 @@ def main(gpu, ngpus_per_node, config, resume, test):
 
     #### Fix iter_per_epoch ####
     # iter_per_epoch = 1157
-    iter_per_epoch = 1157
+    iter_per_epoch = 11
 
     sup_loss = CE_loss
     model = models.CAC(num_classes=val_loader.dataset.num_classes, conf=config['model'],
