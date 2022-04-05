@@ -232,7 +232,6 @@ class Trainer(BaseTrainer):
             self.pixel_acc_l, self.mIoU_l, self.class_iou_l = seg_metrics_l.values()
 
         if 'unsup_pred' in outputs:
-            print("haha")
             seg_metrics_ul = eval_metrics(outputs['unsup_pred'], target_ul, self.num_classes, self.ignore_index)
             
             if self.gpu == 0:

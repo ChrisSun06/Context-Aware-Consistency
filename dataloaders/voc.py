@@ -74,8 +74,6 @@ class PairVOCDataset(BaseDataSet):
             label_path = os.path.join(self.weak_labels_output, image_id+".png")
         else:
             label_path = os.path.join(self.root, self.labels[index][1:])
-        print("image_path: {}".format(image_path))
-        print("label_path: {}".format(label_path))
         label = np.asarray(Image.open(label_path), dtype=np.int32)
         h, w, _ = image.shape
 
