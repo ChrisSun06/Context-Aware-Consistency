@@ -106,9 +106,12 @@ class Trainer(BaseTrainer_semiseg):
             dist.all_reduce(cps_loss, dist.ReduceOp.SUM)
             # cps_loss = cps_loss / engine.world_size
             cps_loss = cps_loss * 1.5
+            # cps_loss = cps_loss
 
             ### standard cross entropy loss ###
+            # print(torch.max(target_l))
             loss_sup = criterion(pred_sup_l, target_l)
+            
             dist.all_reduce(loss_sup, dist.ReduceOp.SUM)
             # loss_sup = loss_sup / engine.world_size
 

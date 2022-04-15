@@ -1,10 +1,10 @@
 {
     "name": "CAC",
-    "experim_name": "city_cac_deeplabv3+_resnet50_1over8_datalist0",
+    "experim_name": "city_cac_deeplabv3+_resnet50_372labels",
     "dataset": "cityscapes",
-    "data_dir": "/home/xinlai/dataset/cityscapes",
+    "data_dir": "/home/hongyi/Context-Aware-Consistency/pretrained",
     "datalist": 0,
-    "n_gpu": 4,
+    "n_gpu": 1,
     "n_labeled_examples": 372,
     "diff_lrs": true,
     "ramp_up": 0.1,
@@ -48,8 +48,8 @@
     },
 
     "train_supervised": {
-        "batch_size": 8,
-        "crop_size": 720,
+        "batch_size": 4,
+        "crop_size": 360,
         "shuffle": true,
         "base_size": 2048,
         "scale": true,
@@ -58,13 +58,13 @@
         "rotate": false,
         "blur": false,
         "split": "train_supervised",
-        "num_workers": 8,
+        "num_workers": 1,
         "jitter": true
     },
 
     "train_unsupervised": {
-        "batch_size": 8,
-        "crop_size": 720,
+        "batch_size": 4,
+        "crop_size": 360,
         "shuffle": true,
         "base_size": 2048,
         "scale": true,
@@ -73,21 +73,21 @@
         "rotate": false,
         "blur": false,
         "split": "train_unsupervised",
-        "num_workers": 8,
+        "num_workers": 1,
         "iou_bound": [0.1, 1.0],
         "stride": 8
     },
 
     "val_loader": {
-        "batch_size": 4,
+        "batch_size": 2,
         "val": true,
         "split": "val",
         "shuffle": false,
-        "num_workers": 4
+        "num_workers": 1
     },
 
     "trainer": {
-        "epochs": 80,
+        "epochs": 20,
         "save_dir": "saved/",
         "save_period": 1,
   

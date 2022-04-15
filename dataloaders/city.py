@@ -26,7 +26,7 @@ class RandomGaussianBlur(object):
 
 class PairCityDataset(BaseDataSet):
     def __init__(self, **kwargs):
-        self.num_classes = 19
+        self.num_classes = 34
 
         self.datalist = kwargs.pop("datalist")
         self.stride = kwargs.pop('stride')
@@ -188,6 +188,51 @@ class PairCityDataset(BaseDataSet):
         return images, labels, overlap1_ul, overlap1_br, overlap2_ul, overlap2_br, flip
 
 
+class PairCityDataset2(BaseDataSet):
+    def __init__(self, **kwargs):
+        self.num_classes = 34
+
+        self.datalist = kwargs.pop("datalist")
+        self.stride = kwargs.pop('stride')
+        self.iou_bound = kwargs.pop('iou_bound')
+
+        self.palette = pallete.get_voc_pallete(self.num_classes)
+        super(PairCityDataset2, self).__init__(**kwargs)
+
+        self.train_transform = transforms.Compose([
+            transforms.ToPILImage(),
+            RandomGaussianBlur(),
+            transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
+            transforms.RandomGrayscale(p=0.2),
+            transforms.ToTensor(),
+            self.normalize,
+        ])
+            
+    def _set_files(self):
+        prefix = "dataloaders/city_splits{}".format(self.datalist)
+
+        if self.split == "val":
+            file_list = os.path.join(prefix, f"{self.split}" + ".txt")
+        elif self.split in ["train_supervised", "train_unsupervised"]:
+            file_list = os.path.join(prefix, f"{self.n_labeled_examples}_{self.split}" + ".txt")
+        else:
+            raise ValueError(f"Invalid split name {self.split}")
+
+        file_list = [line.rstrip().split(' ') for line in tuple(open(file_list, "r"))]
+        self.files, self.labels = list(zip(*file_list))
+
+    def _load_data(self, index):
+        image_path = os.path.join(self.root, self.files[index][:])
+        image = np.asarray(Image.open(image_path), dtype=np.float32)
+        image_id = self.files[index].split("/")[-1].split(".")[0]
+        if self.use_weak_lables:
+            label_path = os.path.join(self.weak_labels_output, image_id+".png")
+        else:
+            label_path = os.path.join(self.root, self.labels[index][:])
+        label = np.asarray(Image.open(label_path), dtype=np.int32)
+        return image, label, image_id
+
+
 class PairCity(BaseDataLoader):
     def __init__(self, kwargs):
         
@@ -200,7 +245,11 @@ class PairCity(BaseDataLoader):
 
         sampler_shuffle = kwargs.pop('shuffle')
         num_workers = kwargs.pop('num_workers')
-        self.dataset = PairCityDataset(**kwargs)
+        # self.dataset = PairCityDataset(**kwargs)
+        # For model 2
+        self.dataset = PairCityDataset2(**kwargs)
+        # For model 1
+        # self.dataset = PairCityDataset(**kwargs)
         shuffle = False
         dist_sampler = torch.utils.data.distributed.DistributedSampler(self.dataset, shuffle=sampler_shuffle)
 
@@ -209,7 +258,7 @@ class PairCity(BaseDataLoader):
 
 class CityDataset(BaseDataSet):
     def __init__(self, **kwargs):
-        self.num_classes = 19
+        self.num_classes = 34
 
         self.datalist = kwargs.pop("datalist")
         self.palette = pallete.get_voc_pallete(self.num_classes)
