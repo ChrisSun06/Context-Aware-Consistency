@@ -345,13 +345,16 @@ class SingleNetwork(nn.Module):
         #                           bn_eps=config.bn_eps,
         #                           bn_momentum=config.bn_momentum,
         #                           deep_stem=True, stem_width=64)
-        self.sup_loss_w = conf['supervised_w']
-        # self.sup_loss = sup_loss
-        self.downsample = conf['downsample']
-        self.backbone = conf['backbone']
+        # self.sup_loss_w = conf['supervised_w']
+        # # self.sup_loss = sup_loss
+        # self.downsample = conf['downsample']
+        # self.backbone = conf['backbone']
+        # self.layers = conf['layers']
+        # self.out_dim = conf['out_dim']
+        # self.proj_final_dim = conf['proj_final_dim']
+        # self.backbone = conf['backbone']
         self.layers = conf['layers']
         self.out_dim = conf['out_dim']
-        self.proj_final_dim = conf['proj_final_dim']
         
         self.backbone = DeepLab_v3p(backbone='resnet{}'.format(self.layers))
         # self.dilate = 2
@@ -379,8 +382,6 @@ class SingleNetwork(nn.Module):
 
     def forward(self, data):
         blocks = self.backbone(data)
-        # v3plus_feature = self.head(blocks)      # (b, c, h, w)
-        # b, c, h, w = v3plus_feature.shape
 
         pred = self.classifier(blocks)
 

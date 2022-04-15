@@ -15,12 +15,13 @@ from utils.helpers import DeNormalize
 import torch.distributed as dist
 
 class Trainer(BaseTrainer_semiseg):
-    def __init__(self, model, resume, config, supervised_loader, unsupervised_loader, iter_per_epoch,
+    def __init__(self, model, resume, config, supervised_loader, unsupervised_loader, unsupervised_loader_2, iter_per_epoch,
                 val_loader=None, train_logger=None, gpu=None, gt_loader=None, test=False):
         super(Trainer, self).__init__(model, resume, config, iter_per_epoch, train_logger, gpu=gpu, test=test)
         
         self.supervised_loader = supervised_loader
         self.unsupervised_loader = unsupervised_loader
+        self.unsupervised_loader_2 = unsupervised_loader_2
         self.val_loader = val_loader
         self.iter_per_epoch = iter_per_epoch
 
@@ -51,61 +52,90 @@ class Trainer(BaseTrainer_semiseg):
 
         self.supervised_loader.train_sampler.set_epoch(epoch)
         self.unsupervised_loader.train_sampler.set_epoch(epoch)
+        self.unsupervised_loader_2.train_sampler.set_epoch(epoch)
 
-        # if self.mode == 'supervised':
-        #     dataloader = iter(self.supervised_loader)
-        #     tbar = tqdm(range(len(self.supervised_loader)), ncols=135)
-        # else:
-        dataloader = iter(zip(cycle(self.supervised_loader), cycle(self.unsupervised_loader)))
+        dataloader = iter(zip(cycle(self.supervised_loader), cycle(self.unsupervised_loader), cycle(self.unsupervised_loader_2)))
         tbar = tqdm(range(self.iter_per_epoch), ncols=135)
 
         self._reset_metrics()
 
         for batch_idx in tbar:
 
-            # if self.mode == 'supervised':
-            #     (input_l, target_l), (input_ul, target_ul) = next(dataloader), (None, None)
-            # else:W
-            (input_l, target_l), (input_ul, target_ul) = next(dataloader)
+            (input_l, target_l), (input_ul, target_ul, mask_params), (input_ul_2, target_ul_2) = next(dataloader)
 
             input_l, target_l = input_l.cuda(non_blocking=True), target_l.cuda(non_blocking=True)
-            input_ul, target_ul = input_ul.cuda(non_blocking=True), target_ul.cuda(non_blocking=True)
+            input_ul, target_ul, mask_params = input_ul.cuda(non_blocking=True), target_ul.cuda(non_blocking=True), mask_params.cuda(non_blocking=True)
+            input_ul_2, target_ul_2 = input_ul_2.cuda(non_blocking=True), target_ul_2.cuda(non_blocking=True)
             self.model.zero_grad()
             self.optimizer_l.zero_grad()
             self.optimizer_r.zero_grad()
 
-            # if self.mode == 'supervised':
-            #     total_loss, cur_losses, outputs = self.model(x_l=input_l, target_l=target_l, x_ul=input_ul,
-            #                                                 curr_iter=batch_idx, target_ul=target_ul, epoch=epoch-1)
-            # else:
-            kargs = {'gpu': self.gpu, 'ul1': None, 'br1': None, 'ul2': None, 'br2': None, 'flip': None}
-            # total_loss, cur_losses, outputs = self.model(x_l=input_l, target_l=target_l, x_ul=input_ul,
-            #                                             curr_iter=batch_idx, target_ul=target_ul, epoch=epoch-1, **kargs)
-            # target_ul = target_ul[:, 0]
-            # print(input_l.shape)
             # print(input_ul.shape)
-            _, pred_sup_l = self.model(input_l, step=1)
-            _, pred_unsup_l = self.model(input_ul, step=1)
-            _, pred_sup_r = self.model(input_l, step=2)
-            _, pred_unsup_r = self.model(input_ul, step=2)
+            # print(mask_params.shape)
 
-            outputs = {'sup_pred': pred_sup_l}
+            kargs = {'gpu': self.gpu, 'ul1': None, 'br1': None, 'ul2': None, 'br2': None, 'flip': None}
+
+            # _, pred_sup_l = self.model(input_l, step=1)
+            # _, pred_unsup_l = self.model(input_ul, step=1)
+            # _, pred_sup_r = self.model(input_l, step=2)
+            # _, pred_unsup_r = self.model(input_ul, step=2)
+
+            # outputs = {'sup_pred': pred_sup_l}
             
             # config network and criterion
             criterion = torch.nn.CrossEntropyLoss(reduction='mean', ignore_index=255)
             criterion_csst = torch.nn.MSELoss(reduction='mean')
 
-            ### cps loss ###
-            pred_l = torch.cat([pred_sup_l, pred_unsup_l], dim=0)
-            pred_r = torch.cat([pred_sup_r, pred_unsup_r], dim=0)
-            _, max_l = torch.max(pred_l, dim=1)
-            _, max_r = torch.max(pred_r, dim=1)
-            max_l = max_l.long()
-            max_r = max_r.long()
-            cps_loss = criterion(pred_l, max_r) + criterion(pred_r, max_l)
+            # ### cps loss ###
+            # pred_l = torch.cat([pred_sup_l, pred_unsup_l], dim=0)
+            # pred_r = torch.cat([pred_sup_r, pred_unsup_r], dim=0)
+            # _, max_l = torch.max(pred_l, dim=1)
+            # _, max_r = torch.max(pred_r, dim=1)
+            # max_l = max_l.long()
+            # max_r = max_r.long()
+            # cps_loss = criterion(pred_l, max_r) + criterion(pred_r, max_l)
+            # dist.all_reduce(cps_loss, dist.ReduceOp.SUM)
+            # cps_loss = cps_loss * 1.5
+
+            # unsupervised loss on model/branch#1
+            batch_mix_masks = mask_params
+            unsup_imgs_mixed = input_ul * (1 - batch_mix_masks) + input_ul_2 * batch_mix_masks
+            with torch.no_grad():
+                # Estimate the pseudo-label with branch#1 & supervise branch#2
+                _, logits_u0_tea_1 = self.model(input_ul, step=1)
+                _, logits_u1_tea_1 = self.model(input_ul_2, step=1)
+                logits_u0_tea_1 = logits_u0_tea_1.detach()
+                logits_u1_tea_1 = logits_u1_tea_1.detach()
+                # Estimate the pseudo-label with branch#2 & supervise branch#1
+                _, logits_u0_tea_2 = self.model(input_ul, step=2)
+                _, logits_u1_tea_2 = self.model(input_ul_2, step=2)
+                logits_u0_tea_2 = logits_u0_tea_2.detach()
+                logits_u1_tea_2 = logits_u1_tea_2.detach()
+
+            # Mix teacher predictions using same mask
+            # It makes no difference whether we do this with logits or probabilities as
+            # the mask pixels are either 1 or 0
+            logits_cons_tea_1 = logits_u0_tea_1 * (1 - batch_mix_masks) + logits_u1_tea_1 * batch_mix_masks
+            _, ps_label_1 = torch.max(logits_cons_tea_1, dim=1)
+            ps_label_1 = ps_label_1.long()
+            logits_cons_tea_2 = logits_u0_tea_2 * (1 - batch_mix_masks) + logits_u1_tea_2 * batch_mix_masks
+            _, ps_label_2 = torch.max(logits_cons_tea_2, dim=1)
+            ps_label_2 = ps_label_2.long()
+
+            # Get student#1 prediction for mixed image
+            _, logits_cons_stu_1 = self.model(unsup_imgs_mixed.type(torch.FloatTensor).cuda(non_blocking=True), step=1)
+            # Get student#2 prediction for mixed image
+            _, logits_cons_stu_2 = self.model(unsup_imgs_mixed.type(torch.FloatTensor).cuda(non_blocking=True), step=2)
+
+            cps_loss = criterion(logits_cons_stu_1, ps_label_2) + criterion(logits_cons_stu_2, ps_label_1)
             dist.all_reduce(cps_loss, dist.ReduceOp.SUM)
-            # cps_loss = cps_loss / engine.world_size
             cps_loss = cps_loss * 1.5
+
+            # Supervised Prediction
+            _, pred_sup_l = self.model(input_l, step=1)
+            _, pred_sup_r = self.model(input_l, step=2)
+
+            outputs = {'sup_pred': pred_sup_l}
 
             ### standard cross entropy loss ###
             loss_sup = criterion(pred_sup_l, target_l)
@@ -133,7 +163,7 @@ class Trainer(BaseTrainer_semiseg):
             
             if self.gpu == 0:
                 if batch_idx % 100 == 0:
-                    self.logger.info("epoch: {} model_left loss: {} model_right loss: {} cps loss: {}".format(epoch, loss_sup, loss_sup_r, cps_loss))
+                    self.logger.info("epoch: {} train_loss: {}".format(epoch, loss))
 
             if batch_idx == 0:
                 self.loss_sup = AverageMeter()

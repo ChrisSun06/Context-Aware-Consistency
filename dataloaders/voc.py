@@ -231,7 +231,7 @@ class PairVOCDataset2(BaseDataSet):
 
 
 class PairVOC(BaseDataLoader):
-    def __init__(self, kwargs):
+    def __init__(self, kwargs, collate_fn=None):
         
         self.MEAN = [0.485, 0.456, 0.406]
         self.STD = [0.229, 0.224, 0.225]
@@ -242,11 +242,14 @@ class PairVOC(BaseDataLoader):
 
         sampler_shuffle = kwargs.pop('shuffle')
         num_workers = kwargs.pop('num_workers')
-        self.dataset = PairVOCDataset(**kwargs)
+        # For model 2
+        self.dataset = PairVOCDataset2(**kwargs)
+        # For model 1
+        # self.dataset = PairVOCDataset(**kwargs)
         shuffle = False
         dist_sampler = torch.utils.data.distributed.DistributedSampler(self.dataset, shuffle=sampler_shuffle)
 
-        super(PairVOC, self).__init__(self.dataset, self.batch_size, shuffle, num_workers, val_split=None, dist_sampler=dist_sampler)
+        super(PairVOC, self).__init__(self.dataset, self.batch_size, shuffle, num_workers, val_split=None, dist_sampler=dist_sampler, collate_fn=collate_fn)
 
 
 class VOCDataset(BaseDataSet):

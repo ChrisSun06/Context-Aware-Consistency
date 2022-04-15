@@ -63,7 +63,7 @@ class BaseDataSet(Dataset):
         label = cv2.warpAffine(label, rot_matrix, (w, h), flags=cv2.INTER_NEAREST)#,  borderMode=cv2.BORDER_REFLECT)
         return image, label            
 
-    def _crop(self, image, label):   
+    def _crop(self, image, label, val=False):   
         # Padding to return the correct crop size
         if (isinstance(self.crop_size, list) or isinstance(self.crop_size, tuple)) and len(self.crop_size) == 2:
             crop_h, crop_w = self.crop_size 
@@ -87,8 +87,14 @@ class BaseDataSet(Dataset):
 
         # Cropping 
         h, w, _ = image.shape
-        start_h = random.randint(0, h - crop_h)
-        start_w = random.randint(0, w - crop_w)
+        
+        if self.val:
+            start_h = int(( h - crop_h) / 2)
+            start_w = int(( w - crop_w) / 2)
+        else:
+            start_h = random.randint(0, h - crop_h)
+            start_w = random.randint(0, w - crop_w)
+
         end_h = start_h + crop_h
         end_w = start_w + crop_w
         image = image[start_h:end_h, start_w:end_w]

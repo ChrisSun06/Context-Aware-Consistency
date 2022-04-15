@@ -1,6 +1,6 @@
 {
     "name": "CAC",
-    "experim_name": "test2",
+    "experim_name": "model2_1_resnet50_voc_datalist0",
     "dataset": "voc",
     "data_dir": "./pretrained/VOCtrainval_11-May-2012",
     "datalist": 0,
@@ -87,7 +87,7 @@
     },
 
     "trainer": {
-        "epochs": 1,
+        "epochs": 10,
         "save_dir": "saved/",
         "save_period": 1,
   

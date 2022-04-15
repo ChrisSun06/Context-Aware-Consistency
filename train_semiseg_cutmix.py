@@ -8,12 +8,34 @@ import dataloaders
 import models
 import math
 from utils import Logger
-from trainer_semiseg import Trainer
+from trainer_semiseg_cutmix import Trainer
 import torch.nn.functional as F
 from utils.losses import abCE_loss, CE_loss, consistency_weight
 
 import torch.multiprocessing as mp
 import torch.distributed as dist
+
+import mask_gen
+from custom_collate import SegCollate
+
+C = {}
+C['cutmix_mask_prop_range'] = (0.25, 0.5)
+C['cutmix_boxmask_n_boxes'] = 3
+C['cutmix_boxmask_fixed_aspect_ratio'] = False
+C['cutmix_boxmask_by_size'] = False
+C['cutmix_boxmask_outside_bounds'] = False
+C['cutmix_boxmask_no_invert'] = False
+
+mask_generator = mask_gen.BoxMaskGenerator(prop_range=C['cutmix_mask_prop_range'], n_boxes=C['cutmix_boxmask_n_boxes'],
+                                           random_aspect_ratio=not C['cutmix_boxmask_fixed_aspect_ratio'],
+                                           prop_by_area=not C['cutmix_boxmask_by_size'], within_bounds=not C['cutmix_boxmask_outside_bounds'],
+                                           invert=not C['cutmix_boxmask_no_invert'])
+
+add_mask_params_to_batch = mask_gen.AddMaskParamsToBatch(
+    mask_generator
+)
+collate_fn = SegCollate()
+mask_collate_fn = SegCollate(batch_aug_fn=add_mask_params_to_batch)
 
 def get_instance(module, name, config, *args):
     # GET THE CORRESPONDING CLASS / FCT 
@@ -60,15 +82,20 @@ def main(gpu, ngpus_per_node, config, resume, test):
     config['train_unsupervised']['datalist'] = config['datalist']
     config['val_loader']['datalist'] = config['datalist']
 
+    config['train_unsupervised_2'] = config['train_unsupervised'].copy()
+
     if config['dataset'] == 'voc':
         sup_dataloader = dataloaders.VOC
         unsup_dataloader = dataloaders.PairVOC
+        # unsup_dataloader_2 = dataloaders.PairVOC
     elif config['dataset'] == 'cityscapes':
         sup_dataloader = dataloaders.City
         unsup_dataloader = dataloaders.PairCity
+        unsup_dataloader_2 = dataloaders.PairCity
 
     supervised_loader = sup_dataloader(config['train_supervised'])
-    unsupervised_loader = unsup_dataloader(config['train_unsupervised'])
+    unsupervised_loader = unsup_dataloader(config['train_unsupervised'], collate_fn=mask_collate_fn)
+    unsupervised_loader_2 = unsup_dataloader(config['train_unsupervised_2'], collate_fn=collate_fn)
     val_loader = sup_dataloader(config['val_loader'])
 
     #### Fix iter_per_epoch ####
@@ -89,6 +116,7 @@ def main(gpu, ngpus_per_node, config, resume, test):
         config=config,
         supervised_loader=supervised_loader,
         unsupervised_loader=unsupervised_loader,
+        unsupervised_loader_2=unsupervised_loader_2,
         val_loader=val_loader,
         iter_per_epoch=iter_per_epoch,
         train_logger=train_logger,

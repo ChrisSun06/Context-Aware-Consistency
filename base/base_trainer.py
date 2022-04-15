@@ -298,8 +298,6 @@ class BaseTrainer_semiseg:
         available_gpus = list(range(n_gpu))
         return device, available_gpus
 
-
-
     def train(self):
         if self.test:
             results = self._valid_epoch(0)
