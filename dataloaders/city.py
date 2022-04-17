@@ -234,7 +234,7 @@ class PairCityDataset2(BaseDataSet):
 
 
 class PairCity(BaseDataLoader):
-    def __init__(self, kwargs):
+    def __init__(self, kwargs, collate_fn=None):
         
         self.MEAN = [0.485, 0.456, 0.406]
         self.STD = [0.229, 0.224, 0.225]
@@ -253,7 +253,7 @@ class PairCity(BaseDataLoader):
         shuffle = False
         dist_sampler = torch.utils.data.distributed.DistributedSampler(self.dataset, shuffle=sampler_shuffle)
 
-        super(PairCity, self).__init__(self.dataset, self.batch_size, shuffle, num_workers, val_split=None, dist_sampler=dist_sampler)
+        super(PairCity, self).__init__(self.dataset, self.batch_size, shuffle, num_workers, val_split=None, dist_sampler=dist_sampler, collate_fn=collate_fn)
 
 
 class CityDataset(BaseDataSet):

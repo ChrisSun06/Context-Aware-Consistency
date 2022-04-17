@@ -1,11 +1,11 @@
 {
     "name": "CAC",
-    "experim_name": "city_cac_deeplabv3+_resnet50_372labels",
+    "experim_name": "city_cac_deeplabv3+_resnet50_744labels_model2_cutmix_0.04",
     "dataset": "cityscapes",
-    "data_dir": "/home/hongyi/Context-Aware-Consistency/pretrained",
+    "data_dir": "/home/ubuntu/Context-Aware-Consistency/pretrained",
     "datalist": 0,
     "n_gpu": 1,
-    "n_labeled_examples": 372,
+    "n_labeled_examples": 744,
     "diff_lrs": true,
     "ramp_up": 0.1,
     "unsupervised_w": 30,
@@ -41,7 +41,7 @@
     "optimizer": {
         "type": "SGD",
         "args":{
-            "lr": 0.1,
+            "lr": 0.04,
             "weight_decay": 1e-4,
             "momentum": 0.9
         }
@@ -49,7 +49,7 @@
 
     "train_supervised": {
         "batch_size": 4,
-        "crop_size": 360,
+        "crop_size": 720,
         "shuffle": true,
         "base_size": 2048,
         "scale": true,
@@ -64,7 +64,7 @@
 
     "train_unsupervised": {
         "batch_size": 4,
-        "crop_size": 360,
+        "crop_size": 720,
         "shuffle": true,
         "base_size": 2048,
         "scale": true,
@@ -79,7 +79,7 @@
     },
 
     "val_loader": {
-        "batch_size": 2,
+        "batch_size": 4,
         "val": true,
         "split": "val",
         "shuffle": false,
