@@ -129,6 +129,7 @@ class Trainer(BaseTrainer_semiseg):
 
             cps_loss = criterion(logits_cons_stu_1, ps_label_2) + criterion(logits_cons_stu_2, ps_label_1)
             dist.all_reduce(cps_loss, dist.ReduceOp.SUM)
+            # cps_loss = cps_loss * 1.5
             cps_loss = cps_loss * 1.5
 
             # Supervised Prediction
