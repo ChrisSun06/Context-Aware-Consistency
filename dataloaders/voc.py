@@ -242,9 +242,9 @@ class PairVOC(BaseDataLoader):
 
         sampler_shuffle = kwargs.pop('shuffle')
         num_workers = kwargs.pop('num_workers')
-        # For model 2
+        # For CPS
         self.dataset = PairVOCDataset2(**kwargs)
-        # For model 1
+        # For CAC
         # self.dataset = PairVOCDataset(**kwargs)
         shuffle = False
         dist_sampler = torch.utils.data.distributed.DistributedSampler(self.dataset, shuffle=sampler_shuffle)
