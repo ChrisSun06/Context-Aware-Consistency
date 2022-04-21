@@ -1,15 +1,9 @@
 # Semi-supervised semantic segmantation
 Our implementation is based on the following two papers:
 
-<<<<<<< HEAD
-*Xin Lai<sup>\*</sup>, Zhuotao Tian<sup>\*</sup>, Li Jiang, Shu Liu, Hengshuang Zhao, Liwei Wang, Jiaya Jia* [**Semi-supervised Semantic Segmentation with Directional Context-aware Consistency**](https://jiaya.me/papers/semiseg_cvpr21.pdf)  (CVPR 2021). [[Paper]](https://jiaya.me/papers/semiseg_cvpr21.pdf) (DCC)
-
-*[Xiaokang Chen](https://charlescxk.github.io/)1, [Yuhui Yuan](https://scholar.google.com/citations?user=PzyvzksAAAAJ&hl=zh-CN)2, [Gang Zeng](https://www.cis.pku.edu.cn/info/1177/1378.htm)1, [Jingdong Wang](https://jingdongwang2017.github.io/)* **[Semi-Supervised Semantic Segmentation with Cross Pseudo Supervision](https://arxiv.org/abs/2106.01226)** (CVPR 2021) [[Paper](https://charlescxk.github.io/papers/CVPR2021_CPS/00446-poster.pdf)] (CPS)
-=======
-CAC: *Xin Lai<sup>\*</sup>, Zhuotao Tian<sup>\*</sup>, Li Jiang, Shu Liu, Hengshuang Zhao, Liwei Wang, Jiaya Jia* [**Semi-supervised Semantic Segmentation with Directional Context-aware Consistency**](https://jiaya.me/papers/semiseg_cvpr21.pdf)  (CVPR 2021). [[Paper]](https://jiaya.me/papers/semiseg_cvpr21.pdf)
+DCC: *Xin Lai<sup>\*</sup>, Zhuotao Tian<sup>\*</sup>, Li Jiang, Shu Liu, Hengshuang Zhao, Liwei Wang, Jiaya Jia* [**Semi-supervised Semantic Segmentation with Directional Context-aware Consistency**](https://jiaya.me/papers/semiseg_cvpr21.pdf)  (CVPR 2021). [[Paper]](https://jiaya.me/papers/semiseg_cvpr21.pdf)
 
 CPS: *[Xiaokang Chen](https://charlescxk.github.io/)1, [Yuhui Yuan](https://scholar.google.com/citations?user=PzyvzksAAAAJ&hl=zh-CN)2, [Gang Zeng](https://www.cis.pku.edu.cn/info/1177/1378.htm)1, [Jingdong Wang](https://jingdongwang2017.github.io/)* **[Semi-Supervised Semantic Segmentation with Cross Pseudo Supervision](https://arxiv.org/abs/2106.01226)** (CVPR 2021) [[Paper](https://charlescxk.github.io/papers/CVPR2021_CPS/00446-poster.pdf)]
->>>>>>> 7beb6ce063a9fd9ebc174dd3bd7a2c90528b56f6
 
 We use the source code from the first paper: https://github.com/dvlab-research/Context-Aware-Consistency to build our implementation for the second paper. For our implementation for the second paper, we built upon its source code https://github.com/charlesCXK/TorchSemiSeg but made moderate modifications for it to run on the code base for the first paper.
 
