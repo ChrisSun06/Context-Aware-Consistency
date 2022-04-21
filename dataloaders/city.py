@@ -245,7 +245,7 @@ class PairCity(BaseDataLoader):
         num_workers = kwargs.pop('num_workers')
         # CPS
         self.dataset = PairCityDataset2(**kwargs)
-        # CAC
+        # DCC
         # self.dataset = PairCityDataset(**kwargs)
         shuffle = False
         dist_sampler = torch.utils.data.distributed.DistributedSampler(self.dataset, shuffle=sampler_shuffle)

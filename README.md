@@ -1,9 +1,9 @@
 # Semi-supervised semantic segmantation
 Our implementation is based on the following two papers:
 
-*Xin Lai<sup>\*</sup>, Zhuotao Tian<sup>\*</sup>, Li Jiang, Shu Liu, Hengshuang Zhao, Liwei Wang, Jiaya Jia* [**Semi-supervised Semantic Segmentation with Directional Context-aware Consistency**](https://jiaya.me/papers/semiseg_cvpr21.pdf)  (CVPR 2021). [[Paper]](https://jiaya.me/papers/semiseg_cvpr21.pdf)
+*Xin Lai<sup>\*</sup>, Zhuotao Tian<sup>\*</sup>, Li Jiang, Shu Liu, Hengshuang Zhao, Liwei Wang, Jiaya Jia* [**Semi-supervised Semantic Segmentation with Directional Context-aware Consistency**](https://jiaya.me/papers/semiseg_cvpr21.pdf)  (CVPR 2021). [[Paper]](https://jiaya.me/papers/semiseg_cvpr21.pdf) (DCC)
 
-*[Xiaokang Chen](https://charlescxk.github.io/)1, [Yuhui Yuan](https://scholar.google.com/citations?user=PzyvzksAAAAJ&hl=zh-CN)2, [Gang Zeng](https://www.cis.pku.edu.cn/info/1177/1378.htm)1, [Jingdong Wang](https://jingdongwang2017.github.io/)* **[Semi-Supervised Semantic Segmentation with Cross Pseudo Supervision](https://arxiv.org/abs/2106.01226)** (CVPR 2021) [[Paper](https://charlescxk.github.io/papers/CVPR2021_CPS/00446-poster.pdf)]
+*[Xiaokang Chen](https://charlescxk.github.io/)1, [Yuhui Yuan](https://scholar.google.com/citations?user=PzyvzksAAAAJ&hl=zh-CN)2, [Gang Zeng](https://www.cis.pku.edu.cn/info/1177/1378.htm)1, [Jingdong Wang](https://jingdongwang2017.github.io/)* **[Semi-Supervised Semantic Segmentation with Cross Pseudo Supervision](https://arxiv.org/abs/2106.01226)** (CVPR 2021) [[Paper](https://charlescxk.github.io/papers/CVPR2021_CPS/00446-poster.pdf)] (CPS)
 
 We use the source code from the first paper: https://github.com/dvlab-research/Context-Aware-Consistency to build our implementation for the second paper. For our implementation for the second paper, we built upon its source code https://github.com/charlesCXK/TorchSemiSeg but made moderate modifications for it to run on the code base for the first paper.
 
@@ -67,10 +67,10 @@ pip install -r requirements.txt
 
 **Important:**
 
-Comment out line 246 in `dataloaders/voc.py` and de-comment line 248 if you are training CAC, vice versa for CPS
+Comment out line 246 in `dataloaders/voc.py` and de-comment line 248 if you are training DCC, vice versa for CPS
 
 ``` 
-self.dataset = PairCityDataset(**kwargs) # <-- CAC
+self.dataset = PairCityDataset(**kwargs) # <-- DCC
 self.dataset = PairCityDataset2(**kwargs) # <-- CPS
 ```
 
@@ -87,13 +87,13 @@ wget https://download.pytorch.org/models/resnet101-5d3b4d8f.pth # ResNet101
 
 Run the following commands for training.
 
-- train the model on the 1/8 labeled data (the 0-th data list) of PASCAL VOC/Cityscape with CAC w/ ResNet50:
+- train the model on the 1/8 labeled data (the 0-th data list) of PASCAL VOC/Cityscape with DCC w/ ResNet50:
 ```
 python3 train.py --config configs/voc_cac_deeplabv3+_resnet50_1over8_datalist0.json
 python3 train.py --config configs/city_cac_deeplabv3+_resnet50_1over8_datalist0.json
 ```
 
-- train the model on the 1/8 labeled data (the 0-th data list) of PASCAL VOC with CAC w/ ResNet101:
+- train the model on the 1/8 labeled data (the 0-th data list) of PASCAL VOC with DCC w/ ResNet101:
 ```
 python3 train.py --config configs/voc_cac_deeplabv3+_resnet101_1over8_datalist0.json
 ```
@@ -114,7 +114,7 @@ python3 train_semiseg_cutmix.py --config configs/city_cac_deeplabv3+_resnet50_1o
 
 ## Pre-trained Models For CAC
 
-For your convenience, you can download some of the pre-trained models of CAC from [Here](https://mycuhk-my.sharepoint.com/:f:/g/personal/1155154502_link_cuhk_edu_hk/EpHdT2JFT11FpsUc4jHE3CoB2wUZ5tQo_W0QzzqHdNtF-A?e=yx2Xha).
+For your convenience, you can download some of the pre-trained models of DCC from [Here](https://mycuhk-my.sharepoint.com/:f:/g/personal/1155154502_link_cuhk_edu_hk/EpHdT2JFT11FpsUc4jHE3CoB2wUZ5tQo_W0QzzqHdNtF-A?e=yx2Xha).
 
 # Related Repositories
 

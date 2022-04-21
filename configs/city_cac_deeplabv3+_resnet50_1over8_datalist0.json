@@ -2,7 +2,7 @@
     "name": "CAC",
     "experim_name": "city_cac_deeplabv3+_resnet50_744labels_model2_cutmix_0.04",
     "dataset": "cityscapes",
-    "data_dir": "/home/ubuntu/Context-Aware-Consistency/pretrained",
+    "data_dir": "/home/hongyi/Context-Aware-Consistency/pretrained/",
     "datalist": 0,
     "n_gpu": 1,
     "n_labeled_examples": 744,
